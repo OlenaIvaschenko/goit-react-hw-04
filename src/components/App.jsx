@@ -1,61 +1,90 @@
-import { React, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "../components/App.css";
-import ContactForm from "./ContactForm/ContactForm";
-import ContactList from "./ContactList/ContactList";
-import SearchBox from "./SearchBox/SearchBox";
-import { nanoid } from "nanoid";
+import SearchBar from "./SearchBar/SearchBar";
+import ImageGallery from "./ImageGallery/ImageGallery";
+import LoadMoreBtn from "./LoadMoreButton/LoadMoreButton";
+import Loader from "./Loader/Loader";
+import ImageModal from "./ImageModal/ImageModal";
+import ErrorMessage from "./ErrorMessage/ErrorMessage";
+
+import { getImages } from "../apiService/images";
 
 const App = () => {
-  const [inputValue, setInputValue] = useState("");
-
-  const [contacts, setContacts] = useState(() => {
-    const dataFromLS = localStorage.getItem("savedData");
-    if (dataFromLS !== null) {
-      return JSON.parse(dataFromLS);
-    }
-    return [
-      { id: "id-1", name: "Rosie Simpson", number: "459-12-56" },
-      { id: "id-2", name: "Hermione Kline", number: "443-89-12" },
-      { id: "id-3", name: "Eden Clements", number: "645-17-79" },
-      { id: "id-4", name: "Annie Copeland", number: "227-91-26" },
-    ];
-  });
+  const [images, setImages] = useState([]);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [modalIsOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const [modalSrc, setModalSrc] = useState(null);
+  const [modalAlt, setModalAlt] = useState("");
+  const [modalDescription, setModalDescription] = useState("");
 
   useEffect(() => {
-    localStorage.setItem("savedData", JSON.stringify(contacts));
-  }, [contacts]);
+    if (!query) return;
 
-  const handleChange = (evt) => {
-    setInputValue(evt.target.value);
+    async function fetchImages() {
+      setIsLoading(true);
+
+      try {
+        const { results, total_pages } = await getImages(query, page);
+
+        // console.log(results);
+
+        setImages((prevImages) => [...prevImages, ...results]);
+
+        setIsVisible(page < total_pages);
+      } catch (error) {
+        setError(error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchImages();
+  }, [query, page]);
+
+  const onSubmit = (inputQuery) => {
+    setQuery(inputQuery);
+    setImages([]);
+    setPage(1);
+    setError(null);
+    setIsVisible(false);
   };
 
-  const searchedName = (inputValue) => {
-    return contacts.filter((contact) =>
-      contact.name.toLowerCase().includes(inputValue.toLowerCase())
-    );
+  const onLoadMore = () => {
+    setPage((prevPage) => prevPage + 1);
   };
 
-  const addNewContact = ({ name, number }) => {
-    const id = nanoid();
-
-    setContacts([...contacts, { name, number, id }]);
+  const openModal = (src, alt, description) => {
+    setIsOpen(true);
+    setModalSrc(src);
+    setModalAlt(alt);
+    setModalDescription(description);
   };
-
-  const removeContact = (id) => {
-    const withoutContact = contacts.filter((contact) => contact.id !== id);
-    setContacts(withoutContact);
+  const closeModal = () => {
+    setIsOpen(false);
+    setModalSrc(null);
+    setModalAlt("");
+    setModalDescription("");
   };
 
   return (
-    <div>
-      <h1>Phonebook</h1>
-      <ContactForm onSubmit={addNewContact} />
-      <SearchBox inputValue={inputValue} onChange={handleChange} />
-      <ContactList
-        filteredContacts={searchedName(inputValue)}
-        removeContact={removeContact}
+    <>
+      <SearchBar onSubmit={onSubmit} />
+      <ImageGallery images={images} openModal={openModal} />
+      {isLoading && <Loader />}
+      {error && <ErrorMessage />}
+      {isVisible && <LoadMoreBtn onClick={onLoadMore} />}
+      <ImageModal
+        modalIsOpen={modalIsOpen}
+        closeModal={closeModal}
+        src={modalSrc}
+        alt={modalAlt}
+        description={modalDescription}
       />
-    </div>
+    </>
   );
 };
 
