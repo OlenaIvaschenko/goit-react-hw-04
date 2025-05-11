@@ -1,0 +1,13 @@
+.filterContacts{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    width: 330px;
+}
+
+.filterInput{
+    width: 100%;
+    border: 1px solid black;
+    border-radius: 4px;
+}
